@@ -1,11 +1,13 @@
 # %% ライブラリインポート
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 
 # %% グローバル変数
 POPULATION_NUM = 100
 CHROMOSOME_LEN = pow(3, 9)
 VALUE_MAX = 9
+MUTATION_RATE = 0.001
 
 # 公比3の等比数列
 THREE = np.power(3, np.arange(9))
@@ -17,12 +19,16 @@ WINLANE = np.array([
 ])
 # ポイント 引き分け 勝ち 負け
 POINT = [1, 3, 0]
+# 選択用インデックス
+NUMBERS = np.arange(POPULATION_NUM)
+
+MUTATION_NUM = int(POPULATION_NUM * CHROMOSOME_LEN * MUTATION_RATE)
 
 
 # %% generate
 def generate():
   # generate random int 0~8
-  population = np.random.randint(0, VALUE_MAX, (POPULATION_NUM, CHROMOSOME_LEN))
+  population = np.random.randint(0, VALUE_MAX, [POPULATION_NUM, CHROMOSOME_LEN])
   return population
 
 
@@ -76,39 +82,51 @@ def evaluate(population):
     for mi in range(bi):
       result = marubatsu(population[bi], population[mi])
       scores[bi, result] += 1
-      scores[mi, (3-result)%3] += 1
+      scores[mi, (3-result) % 3] += 1
   return scores
 
 
-# %% selection
-def selection():
-  return 0
+# %% 選択
+def selection(population, fitnesses):
+  index = np.random.choice(NUMBERS, size=POPULATION_NUM, p=fitnesses)
+  population = population[index]
+  return population
 
 
-# %% crossover
-def crossover():
-  return 0
+# %% 交叉
+def crossover(population):
+  for i in range(0, POPULATION_NUM, 2):
+    r = random.randint(0, CHROMOSOME_LEN)
+    population[i] = np.concatenate([population[i][:r], population[i+1][r:]])
+  return population
 
 
-# %% mutation
-def mutation():
-  return 0
+# %% 突然変異
+def mutation(population):
+  index = np.random.choice(NUMBERS, size=MUTATION_NUM)
+  r = np.random.randint(0, CHROMOSOME_LEN, MUTATION_NUM)
+  random = np.random.randint(0, VALUE_MAX, MUTATION_NUM)
+  population[index, r] = random
+  return population
 
 
 # %% main
-def main():
-  population = generate()
-  record = []
-  for i in range(100):
-    print(str(i+1)+"世代")
-    scores = evaluate(population)
-    record.append(scores)
-    fitnesses = np.dot(scores, POINT)
+population = generate()
+record = []
+for i in range(10000):
+  scores = evaluate(population)
+  record.append(scores)
+  points = np.dot(scores, POINT)
+  # 正規化
+  fitnesses = points / np.sum(points)
+  population = selection(population, fitnesses)
+  population = crossover(population)
+  population = mutation(population)
+  print(f'{i+1}世代')
+  top = np.where(points == np.max(points))
+  winrate = scores[top,1]/np.sum(scores[top])
+  print(f' Winrate: {winrate[0, 0]}')
 
-  return record
-
-
-# %% testcode
-if __name__ == "__main__":
-  main()
+# %% csvファイルに保存
+np.savetxt('scores.csv', np.array(scores), fmt='%d')
 # %%
