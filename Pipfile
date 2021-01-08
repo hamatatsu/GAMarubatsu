@@ -12,6 +12,7 @@ matplotlib = "*"
 autopep8 = "*"
 flake8 = "*"
 pylint = "*"
+rope = "*"
 
 [requires]
 python_version = "3.7"
