@@ -21,7 +21,7 @@ WINLANE = np.array([
 POINT = [1, 3, 0]
 # 選択用インデックス
 NUMBERS = np.arange(POPULATION_NUM)
-
+# 突然変異数
 MUTATION_NUM = int(POPULATION_NUM * CHROMOSOME_LEN * MUTATION_RATE)
 
 
