@@ -32,10 +32,26 @@ def generate():
   return population
 
 
-# %% 配列番号生成
-def makeindex(board):
-  makeindex = int(np.dot(board.ravel(), THREE))
-  return makeindex
+# %% 符号化
+def encode(board):
+  index = int(np.dot(board.ravel(), THREE))
+  return index
+
+
+# %% 3進法変換
+def to3(array, num):
+  quotient = int(num / 3)
+  array.append(num % 3)
+  if(quotient != 0):
+    return to3(array, quotient)
+  return array
+
+
+# %% 復号
+def decode(index):
+  board = np.array(to3([], index))
+  board.resize(VALUE_MAX)
+  return board
 
 
 # %% 並び判定
@@ -48,16 +64,16 @@ def wincheck(board, turnflag):
 def marubatsu(batsu, maru):
   # 勝敗 先攻 1, 後攻 2, 引き分け 0
   result = 0
-  board = np.zeros(9)
+  board = np.zeros(VALUE_MAX)
   # 勝敗が付くまでループ
-  for turn in range(9):
+  for turn in range(VALUE_MAX):
     # 手番 先攻 1, 後攻 2
     turnflag = turn % 2 + 1
     # 印の位置
     if turnflag == 1:
-      index = batsu[makeindex(board)]
+      index = batsu[encode(board)]
     else:
-      index = maru[makeindex(board)]
+      index = maru[encode(board)]
     # 既に印がある時
     if board[index] != 0:
       # 手番の逆が勝利
@@ -124,7 +140,7 @@ for i in range(10000):
   population = mutation(population)
   print(f'{i+1}世代')
   top = np.where(points == np.max(points))
-  winrate = scores[top,1]/np.sum(scores[top])
+  winrate = scores[top, 1]/np.sum(scores[top])
   print(f' Winrate: {winrate[0, 0]}')
 
 # %% csvファイルに保存
