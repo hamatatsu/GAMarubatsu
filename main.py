@@ -1,14 +1,23 @@
 # %% ライブラリインポート
-import matplotlib.pyplot as plt
-import numpy as np
+import datetime
+import os
 import random
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 # %% グローバル変数
+RECORD_PATH = 'records/'
 POPULATION_NUM = 100
 CHROMOSOME_LEN = pow(3, 9)
 VALUE_MAX = 9
 MUTATION_RATE = 0.001
 
+# 日付
+date = datetime.datetime.now()
+date = date.strftime('%y%m%d-%H%M%S/')
+# 記録パス
+RECORD_PATH = RECORD_PATH + date
 # 公比3の等比数列
 THREE = np.power(3, np.arange(9))
 # 並び判定用配列
@@ -126,23 +135,32 @@ def mutation(population):
   return population
 
 
+# %% 表示
+def print_text(gen, scores):
+  print(f'{gen}世代')
+  top = np.where(scores[:, 1] == np.max(scores[:, 1]))
+  winrate = scores[top, 1]/np.sum(scores[top])
+  print(f' Winrate: {winrate[0, 0]}')
+
+
+# %% ファイルに保存
+def save_record(gen, population, scores):
+  np.savez(f'{RECORD_PATH}/{gen:06}', population=population, scores=scores)
+
+
 # %% main
 population = generate()
-record = []
-for i in range(10000):
+os.mkdir(RECORD_PATH)
+
+for gen in range(1, 101):
   scores = evaluate(population)
-  record.append(scores)
+  print_text(gen, scores)
+  # 第1世代、10の倍数世代を記録
+  if gen == 1 or gen % 10 == 0:
+    save_record(gen, population, scores)
+
   points = np.dot(scores, POINT)
-  # 正規化
   fitnesses = points / np.sum(points)
   population = selection(population, fitnesses)
   population = crossover(population)
   population = mutation(population)
-  print(f'{i+1}世代')
-  top = np.where(points == np.max(points))
-  winrate = scores[top, 1]/np.sum(scores[top])
-  print(f' Winrate: {winrate[0, 0]}')
-
-# %% csvファイルに保存
-np.savetxt('scores.csv', np.array(scores), fmt='%d')
-# %%
