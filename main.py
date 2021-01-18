@@ -9,10 +9,8 @@ import numpy as np
 # %% グローバル変数
 RECORD_PATH = 'records/'
 POPULATION_NUM = 100
-CHROMOSOME_LEN = pow(3, 9)
 VALUE_MAX = 9
 MUTATION_RATE = 0.001
-
 # 日付
 date = datetime.datetime.now()
 date = date.strftime('%y%m%d-%H%M%S/')
@@ -28,29 +26,59 @@ WINLANE = np.array([
 ])
 # ポイント 引き分け 勝ち 負け
 POINT = [1, 3, 0]
-# 選択用インデックス
-NUMBERS = np.arange(POPULATION_NUM)
-# 突然変異数
-MUTATION_NUM = int(POPULATION_NUM * CHROMOSOME_LEN * MUTATION_RATE)
 
 
-# %% generate
+# %% 有効盤面インデックス作成
+def create_board_index():
+  allcode = np.arange(pow(3,9))
+  # 全盤面生成
+  decoded = np.array([decode(i) for i in allcode])
+  # 決着判定
+  batsu_win = np.where([wincheck(decoded[i,:], 1) for i in allcode])
+  maru_win = np.where([wincheck(decoded[i,:], 2) for i in allcode])
+  # 手番判定
+  batsu_turns = np.array([np.sum(decoded[i,:] == 1) for i in allcode])
+  maru_turns = np.array([np.sum(decoded[i,:] == 2) for i in allcode])
+  sub_turns = batsu_turns - maru_turns
+  turns = np.where((sub_turns < 0) | (1 < sub_turns))[0]
+  # 全埋め判定
+  fill = np.where([np.sum(np.where(decoded[i,:] > 0, 1, 0)) == 9 for i in allcode])[0]
+  # 除外
+  index = np.setdiff1d(allcode, batsu_win)
+  index = np.setdiff1d(index, maru_win)
+  index = np.setdiff1d(index, turns)
+  index = np.setdiff1d(index, fill)
+  return index
+
+
+# %% 空いてるマスをランダムに選択
+def generate_num(index):
+  board = decode(index)
+  # 盤面の0の部分から一つ選ぶ
+  num = np.random.choice(np.where(board == 0)[0])
+  return num
+
+
+# %% 初期集団の生成
 def generate():
-  # generate random int 0~8
-  population = np.random.randint(0, VALUE_MAX, [POPULATION_NUM, CHROMOSOME_LEN])
+  gn = np.frompyfunc(generate_num, 1, 1)
+  tmp = np.tile(BOARD_INDEX, (POPULATION_NUM, 1))
+  population = gn(tmp)
+  population = population.astype(np.int32)
   return population
 
 
 # %% 符号化
 def encode(board):
-  index = int(np.dot(board.ravel(), THREE))
+  index = np.dot(board, THREE)
+  index = np.where(BOARD_INDEX == index)[0][0]
   return index
 
 
 # %% 3進法変換
 def to3(array, num):
   quotient = int(num / 3)
-  array.append(num % 3)
+  array = np.append(array, num % 3)
   if(quotient != 0):
     return to3(array, quotient)
   return array
@@ -58,7 +86,7 @@ def to3(array, num):
 
 # %% 復号
 def decode(index):
-  board = np.array(to3([], index))
+  board = to3(np.empty(0,np.int32), index)
   board.resize(VALUE_MAX)
   return board
 
@@ -140,7 +168,7 @@ def print_text(gen, scores):
   print(f'{gen}世代')
   top = np.where(scores[:, 1] == np.max(scores[:, 1]))
   winrate = scores[top, 1]/np.sum(scores[top])
-  print(f' Winrate: {winrate[0, 0]}')
+  print(f' 勝率: {winrate[0, 0]}')
 
 
 # %% ファイルに保存
@@ -149,10 +177,21 @@ def save_record(gen, population, scores):
 
 
 # %% main
-population = generate()
+
+# 有効盤面インデックス
+BOARD_INDEX = create_board_index()
+CHROMOSOME_LEN = len(BOARD_INDEX)
+# 選択用インデックス
+NUMBERS = np.arange(POPULATION_NUM)
+# 突然変異数
+MUTATION_NUM = int(POPULATION_NUM * CHROMOSOME_LEN * MUTATION_RATE)
+# 記録フォルダ作成
 os.mkdir(RECORD_PATH)
 
-for gen in range(1, 101):
+print('初期集団生成')
+population = generate()
+
+for gen in range(1, 201):
   scores = evaluate(population)
   print_text(gen, scores)
   # 第1世代、10の倍数世代を記録
