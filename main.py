@@ -6,44 +6,22 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
-# %% グローバル変数
-RECORD_PATH = 'records/'
-POPULATION_NUM = 100
-NUM_MAX = 9
-CROSSOVER_RATE = 0.8
-MUTATION_RATE = 0.05
-# 日付
-date = datetime.datetime.now()
-date = date.strftime('%y%m%d-%H%M%S/')
-# 記録パス
-RECORD_PATH = RECORD_PATH + date
-# 公比3の等比数列
-THREE = np.power(3, np.arange(9))
-# 並び判定用配列
-WINLANE = np.array([
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6]
-])
-# ポイント 引き分け 勝ち 負け
-POINT = [1, 3, 0]
-
 
 # %% 有効盤面インデックス作成
 def create_board_index():
-  allcode = np.arange(pow(3,9))
+  allcode = np.arange(pow(3, 9))
   # 全盤面生成
   decoded = np.array([decode(i) for i in allcode])
   # 決着判定
-  batsu_win = np.where([wincheck(decoded[i,:], 1) for i in allcode])
-  maru_win = np.where([wincheck(decoded[i,:], 2) for i in allcode])
+  batsu_win = np.where([wincheck(decoded[i, :], 1) for i in allcode])
+  maru_win = np.where([wincheck(decoded[i, :], 2) for i in allcode])
   # 手番判定
-  batsu_turns = np.array([np.sum(decoded[i,:] == 1) for i in allcode])
-  maru_turns = np.array([np.sum(decoded[i,:] == 2) for i in allcode])
+  batsu_turns = np.array([np.sum(decoded[i, :] == 1) for i in allcode])
+  maru_turns = np.array([np.sum(decoded[i, :] == 2) for i in allcode])
   sub_turns = batsu_turns - maru_turns
   turns = np.where((sub_turns < 0) | (1 < sub_turns))[0]
   # 全埋め判定
-  fill = np.where([np.sum(np.where(decoded[i,:] > 0, 1, 0)) == 9 for i in allcode])[0]
+  fill = np.where([np.sum(np.where(decoded[i, :] > 0, 1, 0)) == 9 for i in allcode])[0]
   # 除外
   index = np.setdiff1d(allcode, batsu_win)
   index = np.setdiff1d(index, maru_win)
@@ -55,7 +33,7 @@ def create_board_index():
 # %% 生成用インデックス作成
 def create_generation_index():
   decoded = np.array([decode(i) for i in BOARD_INDEX])
-  index = np.array([np.where(decoded[i,:] == 0)[0] for i in range(CHROMOSOME_LEN)], dtype=np.object)
+  index = np.array([np.where(decoded[i, :] == 0)[0] for i in range(CHROMOSOME_LEN)], dtype=np.object)
   return index
 
 
@@ -93,7 +71,7 @@ def to3(array, num):
 
 # %% 復号
 def decode(index):
-  board = to3(np.empty(0,np.int32), index)
+  board = to3(np.empty(0, np.int32), index)
   board.resize(NUM_MAX, refcheck=False)
   return board
 
@@ -134,40 +112,46 @@ def marubatsu(batsu, maru):
 
 
 # %% 評価
-def evaluation(population):
+def evaluation(population, random=False):
   # スコア記録 引き分け 勝ち 負け
   scores = np.zeros([POPULATION_NUM, 3])
+  enemies = generation()
   # 総当たり
   for bi in range(POPULATION_NUM):
     for mi in range(bi):
       result = marubatsu(population[bi], population[mi])
       scores[bi, result] += 1
       scores[mi, (3-result) % 3] += 1
+    # ランダムな相手
+    if random:
+      for enemy in enemies:
+        result = marubatsu(population[bi], enemy)
+        scores[bi, result] += 1
   return scores
 
 
 # %% 選択
 def selection(population, fitnesses):
-  index = np.random.choice(NUMBERS, size=POPULATION_NUM, p=fitnesses)
+  index = np.random.choice(POPULATION_ARRAY, size=POPULATION_NUM, p=fitnesses)
   population = population[index]
   return population
 
 
 # %% 交叉
 def crossover(population):
-  index = np.random.choice(NUMBERS, size=CROSSOVER_NUM, replace=False)
+  index = np.random.choice(POPULATION_ARRAY, size=CROSSOVER_NUM, replace=False)
   crossed = np.copy(population)
   # 2つづつ取り出し2点交叉
-  for i, j in index.reshape([-1,2]):
+  for i, j in index.reshape([-1, 2]):
     r = random.randint(1, CHROMOSOME_LEN-1)
     crossed[i] = np.concatenate([population[i][:r], population[j][r:]])
-    crossed[j] = np.concatenate([population[i][r:], population[j][:r]])
+    crossed[j] = np.concatenate([population[j][:r], population[j][r:]])
   return crossed
 
 
 # %% 突然変異
 def mutation(population):
-  p_index = np.random.choice(NUMBERS, size=MUTATION_NUM)
+  p_index = np.random.choice(POPULATION_ARRAY, size=MUTATION_NUM)
   c_index = np.random.randint(0, CHROMOSOME_LEN, MUTATION_NUM)
   random = generation_num_np(c_index)
   population[p_index, c_index] = random
@@ -179,7 +163,7 @@ def print_text(gen, scores):
   print(f'{gen}世代')
   top = np.where(scores[:, 1] == np.max(scores[:, 1]))
   winrate = scores[top, 1]/np.sum(scores[top])
-  print(f' 勝率: {winrate[0, 0]}')
+  print(f' 勝率: {winrate[0, 0]} 成績:{list(scores[top])}')
 
 
 # %% ファイルに保存
@@ -187,6 +171,27 @@ def save_record(gen, population, scores):
   np.savez(f'{RECORD_PATH}/{gen:06}', population=population, scores=scores)
 
 
+# %% グローバル変数
+RECORD_PATH = 'records/'
+POPULATION_NUM = 100
+NUM_MAX = 9
+CROSSOVER_RATE = 0.8
+MUTATION_RATE = 0.05
+# 日付
+date = datetime.datetime.now()
+date = date.strftime('%y%m%d-%H%M%S/')
+# 記録パス
+RECORD_PATH = RECORD_PATH + date
+# 公比3の等比数列
+THREE = np.power(3, np.arange(9))
+# 並び判定用配列
+WINLANE = np.array([
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+])
+# ポイント 引き分け 勝ち 負け
+POINT = [1, 3, 0]
 # %% 前処理
 # 有効盤面インデックス
 BOARD_INDEX = create_board_index()
@@ -194,7 +199,7 @@ CHROMOSOME_LEN = len(BOARD_INDEX)
 # 生成用インデックス
 GENERATION_INDEX = create_generation_index()
 # 選択用インデックス
-NUMBERS = np.arange(POPULATION_NUM)
+POPULATION_ARRAY = np.arange(POPULATION_NUM)
 # 交叉数
 CROSSOVER_NUM = int(POPULATION_NUM * CROSSOVER_RATE)
 # 突然変異数
