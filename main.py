@@ -161,9 +161,9 @@ def mutation(population):
 # %% 表示
 def print_text(gen, scores):
   print(f'{gen}世代')
-  top = np.where(scores[:, 1] == np.max(scores[:, 1]))
+  top = np.where(scores[:, 1] == np.max(scores[:, 1]))[0][0]
   winrate = scores[top, 1]/np.sum(scores[top])
-  print(f' 勝率: {winrate[0, 0]} 成績:{list(scores[top])}')
+  print(f' 勝率: {winrate} 成績:{scores[top]}')
 
 
 # %% ファイルに保存
