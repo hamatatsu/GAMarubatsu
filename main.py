@@ -9,8 +9,9 @@ import numpy as np
 # %% グローバル変数
 RECORD_PATH = 'records/'
 POPULATION_NUM = 100
-VALUE_MAX = 9
-MUTATION_RATE = 0.001
+NUM_MAX = 9
+CROSSOVER_RATE = 0.8
+MUTATION_RATE = 0.05
 # 日付
 date = datetime.datetime.now()
 date = date.strftime('%y%m%d-%H%M%S/')
@@ -51,19 +52,25 @@ def create_board_index():
   return index
 
 
+# %% 生成用インデックス作成
+def create_generation_index():
+  decoded = np.array([decode(i) for i in BOARD_INDEX])
+  index = np.array([np.where(decoded[i,:] == 0)[0] for i in range(CHROMOSOME_LEN)], dtype=np.object)
+  return index
+
+
 # %% 空いてるマスをランダムに選択
-def generate_num(index):
-  board = decode(index)
+def generation_num(index):
   # 盤面の0の部分から一つ選ぶ
-  num = np.random.choice(np.where(board == 0)[0])
+  num = np.random.choice(GENERATION_INDEX[index])
   return num
+generation_num_np = np.frompyfunc(generation_num, 1, 1)
 
 
 # %% 初期集団の生成
-def generate():
-  gn = np.frompyfunc(generate_num, 1, 1)
-  tmp = np.tile(BOARD_INDEX, (POPULATION_NUM, 1))
-  population = gn(tmp)
+def generation():
+  tmp = np.tile(np.arange(CHROMOSOME_LEN), (POPULATION_NUM, 1))
+  population = generation_num_np(tmp)
   population = population.astype(np.int32)
   return population
 
@@ -87,7 +94,7 @@ def to3(array, num):
 # %% 復号
 def decode(index):
   board = to3(np.empty(0,np.int32), index)
-  board.resize(VALUE_MAX)
+  board.resize(NUM_MAX, refcheck=False)
   return board
 
 
@@ -101,9 +108,9 @@ def wincheck(board, turnflag):
 def marubatsu(batsu, maru):
   # 勝敗 先攻 1, 後攻 2, 引き分け 0
   result = 0
-  board = np.zeros(VALUE_MAX)
+  board = np.zeros(NUM_MAX)
   # 勝敗が付くまでループ
-  for turn in range(VALUE_MAX):
+  for turn in range(NUM_MAX):
     # 手番 先攻 1, 後攻 2
     turnflag = turn % 2 + 1
     # 印の位置
@@ -127,7 +134,7 @@ def marubatsu(batsu, maru):
 
 
 # %% 評価
-def evaluate(population):
+def evaluation(population):
   # スコア記録 引き分け 勝ち 負け
   scores = np.zeros([POPULATION_NUM, 3])
   # 総当たり
@@ -148,18 +155,22 @@ def selection(population, fitnesses):
 
 # %% 交叉
 def crossover(population):
-  for i in range(0, POPULATION_NUM, 2):
-    r = random.randint(0, CHROMOSOME_LEN)
-    population[i] = np.concatenate([population[i][:r], population[i+1][r:]])
-  return population
+  index = np.random.choice(NUMBERS, size=CROSSOVER_NUM, replace=False)
+  crossed = np.copy(population)
+  # 2つづつ取り出し2点交叉
+  for i, j in index.reshape([-1,2]):
+    r = random.randint(1, CHROMOSOME_LEN-1)
+    crossed[i] = np.concatenate([population[i][:r], population[j][r:]])
+    crossed[j] = np.concatenate([population[i][r:], population[j][:r]])
+  return crossed
 
 
 # %% 突然変異
 def mutation(population):
-  index = np.random.choice(NUMBERS, size=MUTATION_NUM)
-  r = np.random.randint(0, CHROMOSOME_LEN, MUTATION_NUM)
-  random = np.random.randint(0, VALUE_MAX, MUTATION_NUM)
-  population[index, r] = random
+  p_index = np.random.choice(NUMBERS, size=MUTATION_NUM)
+  c_index = np.random.randint(0, CHROMOSOME_LEN, MUTATION_NUM)
+  random = generation_num_np(c_index)
+  population[p_index, c_index] = random
   return population
 
 
@@ -176,23 +187,28 @@ def save_record(gen, population, scores):
   np.savez(f'{RECORD_PATH}/{gen:06}', population=population, scores=scores)
 
 
-# %% main
-
+# %% 前処理
 # 有効盤面インデックス
 BOARD_INDEX = create_board_index()
 CHROMOSOME_LEN = len(BOARD_INDEX)
+# 生成用インデックス
+GENERATION_INDEX = create_generation_index()
 # 選択用インデックス
 NUMBERS = np.arange(POPULATION_NUM)
+# 交叉数
+CROSSOVER_NUM = int(POPULATION_NUM * CROSSOVER_RATE)
 # 突然変異数
 MUTATION_NUM = int(POPULATION_NUM * CHROMOSOME_LEN * MUTATION_RATE)
 # 記録フォルダ作成
 os.mkdir(RECORD_PATH)
 
+
+# %% main
 print('初期集団生成')
-population = generate()
+population = generation()
 
 for gen in range(1, 201):
-  scores = evaluate(population)
+  scores = evaluation(population)
   print_text(gen, scores)
   # 第1世代、10の倍数世代を記録
   if gen == 1 or gen % 10 == 0:
