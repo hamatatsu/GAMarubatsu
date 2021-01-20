@@ -115,7 +115,7 @@ def marubatsu(batsu, maru):
 def evaluation(population, random=False):
   # スコア記録 引き分け 勝ち 負け
   scores = np.zeros([POPULATION_NUM, 3])
-  enemies = generation()
+  # enemies = generation()
   # 総当たり
   for bi in range(POPULATION_NUM):
     for mi in range(bi):
@@ -123,10 +123,10 @@ def evaluation(population, random=False):
       scores[bi, result] += 1
       scores[mi, (3-result) % 3] += 1
     # ランダムな相手
-    if random:
-      for enemy in enemies:
-        result = marubatsu(population[bi], enemy)
-        scores[bi, result] += 1
+    # if random:
+    #   for enemy in enemies:
+    #     result = marubatsu(population[bi], enemy)
+    #     scores[bi, result] += 1
   return scores
 
 
@@ -161,9 +161,9 @@ def mutation(population):
 # %% 表示
 def print_text(gen, scores):
   print(f'{gen}世代')
-  top = np.where(scores[:, 1] == np.max(scores[:, 1]))[0][0]
-  winrate = scores[top, 1]/np.sum(scores[top])
-  print(f' 勝率: {winrate} 成績:{scores[top]}')
+  top = np.where(scores[:, 2] == np.min(scores[:, 2]))[0][0]
+  loserate = scores[top, 2]/np.sum(scores[top])
+  print(f' 敗率: {loserate} 成績:{scores[top]}')
 
 
 # %% ファイルに保存
@@ -173,7 +173,8 @@ def save_record(gen, population, scores):
 
 # %% グローバル変数
 RECORD_PATH = 'records/'
-POPULATION_NUM = 100
+POPULATION_NUM = 200
+GEN_MAX = 1000
 NUM_MAX = 9
 CROSSOVER_RATE = 0.8
 MUTATION_RATE = 0.05
@@ -212,14 +213,16 @@ os.mkdir(RECORD_PATH)
 print('初期集団生成')
 population = generation()
 
-for gen in range(1, 201):
+for gen in range(1, GEN_MAX+1):
   scores = evaluation(population)
   print_text(gen, scores)
-  # 第1世代、10の倍数世代を記録
-  if gen == 1 or gen % 10 == 0:
+  # 第1世代、1/10世代を記録
+  if gen == 1 or gen % (GEN_MAX/10) == 0:
     save_record(gen, population, scores)
 
   points = np.dot(scores, POINT)
+  points = points - np.min(points)
+  # points = POPULATION_NUM * 2 - scores[:,2]
   fitnesses = points / np.sum(points)
   population = selection(population, fitnesses)
   population = crossover(population)
