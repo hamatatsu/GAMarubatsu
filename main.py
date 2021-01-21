@@ -103,11 +103,13 @@ def marubatsu(batsu, maru):
       break
     # 印をつける
     board[index] = turnflag
+    print(np.reshape(np.where(board == 1, 'x', np.where(board == 2, 'o', ' ')), [3, 3]))
     # 3つ並んだ時
     if wincheck(board, turnflag):
       # 手番が勝利
       result = turnflag
       break
+  print(result)
   return result
 
 
@@ -173,8 +175,8 @@ def save_record(gen, population, scores):
 
 # %% グローバル変数
 RECORD_PATH = 'records/'
-POPULATION_NUM = 200
-GEN_MAX = 1000
+POPULATION_NUM = 5
+GEN_MAX = 1
 NUM_MAX = 9
 CROSSOVER_RATE = 0.8
 MUTATION_RATE = 0.05
@@ -206,7 +208,7 @@ CROSSOVER_NUM = int(POPULATION_NUM * CROSSOVER_RATE)
 # 突然変異数
 MUTATION_NUM = int(POPULATION_NUM * CHROMOSOME_LEN * MUTATION_RATE)
 # 記録フォルダ作成
-os.mkdir(RECORD_PATH)
+# os.mkdir(RECORD_PATH)
 
 
 # %% main
@@ -217,8 +219,8 @@ for gen in range(1, GEN_MAX+1):
   scores = evaluation(population)
   print_text(gen, scores)
   # 第1世代、1/10世代を記録
-  if gen == 1 or gen % (GEN_MAX/10) == 0:
-    save_record(gen, population, scores)
+  # if gen == 1 or gen % (GEN_MAX/10) == 0:
+    # save_record(gen, population, scores)
 
   points = np.dot(scores, POINT)
   points = points - np.min(points)
